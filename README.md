@@ -1,3 +1,13 @@
+# 補充說明
+
+### 要啟動目前我寫的GUI
+```
+python GUI.py 
+```
+其他參考下面作者的README
+目前裡面放有兩個原始音樂檔案（尚未拆解），一個是cloud.mp3、另個是love.mp3
+轉換後的檔案會放在output資料夾內
+
 # vocal-remover
 
 [![Release](https://img.shields.io/github/release/tsurumeso/vocal-remover.svg)](https://github.com/tsurumeso/vocal-remover/releases/latest)
