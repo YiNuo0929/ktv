@@ -134,7 +134,7 @@ def main():
     model = nets.CascadedNet(args.n_fft, args.hop_length, 32, 128, args.complex)
     model.load_state_dict(torch.load(args.pretrained_model, map_location='cpu'))
     model.to(device)
-    summary(model)
+    #summary(model)
     print('done')
 
     print('loading wave source...', end=' ')
