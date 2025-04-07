@@ -3,7 +3,7 @@ import os
 import subprocess
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QFileDialog, QLabel, QVBoxLayout, QProgressBar,
-    QMessageBox
+    QMessageBox, QLineEdit
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
@@ -12,9 +12,9 @@ class KTVWorker(QThread):
     progress_signal = pyqtSignal(int)
     finished_signal = pyqtSignal(bool, str)
 
-    def __init__(self, audio_path, output_dir="output", bg_image="black.jpg"):
+    def __init__(self, youtube_url, output_dir="output", bg_image="black.jpg"):
         super().__init__()
-        self.audio_path = audio_path
+        self.youtube_url = youtube_url
         self.output_dir = output_dir
         self.bg_image = bg_image
 
@@ -24,14 +24,12 @@ class KTVWorker(QThread):
             if not os.path.exists(self.output_dir):
                 os.makedirs(self.output_dir)
 
-            basename = os.path.splitext(os.path.basename(self.audio_path))[0]
-            output_video = os.path.join(self.output_dir, f"{basename}_video.mp4")
-
             env = os.environ.copy()
             env["KTV_BG_IMAGE"] = self.bg_image
 
             process = subprocess.Popen(
-                ["python", "ktv_tool.py", "--input", self.audio_path],
+                #["python", "ktv_tool.py", "--input", self.youtube_url, "--gpu", "0"] #gpu mode
+                ["python", "ktv_tool.py", "--input", self.youtube_url],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -40,11 +38,13 @@ class KTVWorker(QThread):
             )
 
             for line in iter(process.stdout.readline, ''):
-                print("[LOG]", line.strip())  # 可選：在終端印出來除錯
-                if "分離人聲與伴奏" in line:
-                    self.progress_signal.emit(30)
+                print("[LOG]", line.strip())
+                if "下載音樂中" in line:
+                    self.progress_signal.emit(20)
+                elif "分離人聲與伴奏" in line:
+                    self.progress_signal.emit(40)
                 elif "生成字幕檔" in line:
-                    self.progress_signal.emit(60)
+                    self.progress_signal.emit(70)
                 elif "合成 KTV 影片" in line:
                     self.progress_signal.emit(90)
 
@@ -53,7 +53,7 @@ class KTVWorker(QThread):
 
             if process.returncode == 0:
                 self.progress_signal.emit(100)
-                self.finished_signal.emit(True, output_video)
+                self.finished_signal.emit(True, "output/影片檔案名稱.mp4")
             else:
                 self.finished_signal.emit(False, "")
         except Exception as e:
@@ -67,14 +67,14 @@ class KTVApp(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("KTV 製作工具")
-        self.setGeometry(100, 100, 500, 320)
+        self.setWindowTitle("KTV 製作工具（YouTube 版）")
+        self.setGeometry(100, 100, 500, 360)
 
-        self.label = QLabel("請選擇音訊檔案：")
+        self.label = QLabel("請輸入 YouTube 音樂網址：")
         self.label.setAlignment(Qt.AlignCenter)
 
-        self.btnSelect = QPushButton("選擇音檔")
-        self.btnSelect.clicked.connect(self.openFileDialog)
+        self.inputURL = QLineEdit()
+        self.inputURL.setPlaceholderText("https://www.youtube.com/watch?v=xxxx")
 
         self.btnOutput = QPushButton("選擇輸出資料夾")
         self.btnOutput.clicked.connect(self.selectOutputDir)
@@ -90,7 +90,6 @@ class KTVApp(QWidget):
 
         self.btnProcess = QPushButton("開始製作 KTV 影片")
         self.btnProcess.clicked.connect(self.processAudio)
-        self.btnProcess.setEnabled(False)
 
         self.progressBar = QProgressBar(self)
         self.progressBar.setValue(0)
@@ -100,7 +99,7 @@ class KTVApp(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.label)
-        layout.addWidget(self.btnSelect)
+        layout.addWidget(self.inputURL)
         layout.addWidget(self.btnOutput)
         layout.addWidget(self.labelOutput)
         layout.addWidget(self.btnBG)
@@ -110,20 +109,10 @@ class KTVApp(QWidget):
         layout.addWidget(self.statusLabel)
         self.setLayout(layout)
 
-        self.audio_path = ""
+        self.youtube_url = ""
         self.output_dir = "output"
         self.bg_image = "black.jpg"
         self.worker = None
-
-    def openFileDialog(self):
-        options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "選擇音訊檔案", "",
-                                                   "音訊檔案 (*.mp3 *.m4a *.wav);;所有檔案 (*)",
-                                                   options=options)
-        if file_path:
-            self.audio_path = file_path
-            self.label.setText(f"已選擇：{file_path}")
-            self.btnProcess.setEnabled(True)
 
     def selectOutputDir(self):
         dir_path = QFileDialog.getExistingDirectory(self, "選擇輸出資料夾")
@@ -139,20 +128,25 @@ class KTVApp(QWidget):
             self.labelBG.setText(f"背景圖片：{file_path}")
 
     def processAudio(self):
-        if not self.audio_path:
-            QMessageBox.warning(self, "錯誤", "請先選擇音訊檔案！")
+        self.youtube_url = self.inputURL.text().strip()
+        if not self.youtube_url:
+            QMessageBox.warning(self, "錯誤", "請先輸入 YouTube 網址！")
             return
 
-        self.worker = KTVWorker(self.audio_path, self.output_dir, self.bg_image)
+        self.btnProcess.setEnabled(False)
+
+        self.worker = KTVWorker(self.youtube_url, self.output_dir, self.bg_image)
         self.worker.progress_signal.connect(self.updateProgress)
         self.worker.finished_signal.connect(self.processFinished)
         self.worker.start()
 
     def updateProgress(self, value):
         self.progressBar.setValue(value)
-        if value == 30:
+        if value == 20:
+            self.statusLabel.setText("目前狀態：⏬ 下載 YouTube 音樂中...")
+        elif value == 40:
             self.statusLabel.setText("目前狀態：🎧 分離人聲與伴奏中...")
-        elif value == 60:
+        elif value == 70:
             self.statusLabel.setText("目前狀態：📝 生成字幕中...")
         elif value == 90:
             self.statusLabel.setText("目前狀態：🎬 合成影片中...")
