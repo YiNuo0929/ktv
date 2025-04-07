@@ -1,11 +1,19 @@
 import subprocess
 import os
+import argparse
 
 # 檔案路徑設定
-bg_image = "black.jpg"
-audio_path = "output/five_Instruments.wav"
-subtitle_path = "output/five_subtitle.srt"
-output_video = "output/five_video.mp4"
+import os
+bg_image = os.environ.get("KTV_BG_IMAGE", "black.jpg")  # 預設仍是 black.jpg
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_audio", "-a", required=True)
+parser.add_argument("--input_subtitle", "-s", required=True)
+parser.add_argument("--output_video", "-o", required=True)
+args = parser.parse_args()
+
+audio_path = args.input_audio
+subtitle_path = args.input_subtitle
+output_video = args.output_video
 
 # 確認黑底圖片存在
 if not os.path.exists(bg_image):

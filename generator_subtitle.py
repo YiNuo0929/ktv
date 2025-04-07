@@ -1,12 +1,19 @@
 from faster_whisper import WhisperModel
 from opencc import OpenCC
 from tqdm import tqdm
+import argparse
+
 
 # 設定模型與檔案路徑
 model = WhisperModel("medium", compute_type="int8")  # 你可換成 tiny 或 medium
 cc = OpenCC('s2t')
-input_audio = "output/five_Vocals.wav"
-output_srt = "output/five_subtitle.srt"
+parser = argparse.ArgumentParser()
+parser.add_argument("--input", "-i", required=True, help="人聲音訊檔 (.wav)")
+parser.add_argument("--output", "-o", required=True, help="輸出字幕檔 (.srt)")
+args = parser.parse_args()
+
+input_audio = args.input
+output_srt = args.output
 
 # 執行轉錄
 print("🎙️ 開始轉錄音訊（含逐字時間）...")
